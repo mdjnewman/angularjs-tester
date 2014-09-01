@@ -12,38 +12,42 @@
 
 <body ng-app="angularExample">
 
-<div ng-controller="CalculatorController">
-    <label for="calculand">Enter calculation:</label> <input id="calculand" type="text" ng-model="calculand"><br>
-    {{ calculand }} = {{ calculateWithEval(calculand) }}
-</div>
-
 <div ng-controller="PostIndexCtrl">
-    {{ posts }}
+    <input type="text" ng-change="update()" ng-model="topic"/>
+
+    <div ng-bind-html="renderHtml(result)" id="topTweets"></div>
 </div>
 
 <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.2.22/angular.js"></script>
 <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.2.22/angular-resource.js"></script>
 
+<script>window.twttr = (function (d, s, id) {
+    var t, js, fjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) return;
+    js = d.createElement(s);
+    js.id = id;
+    js.src = "https://platform.twitter.com/widgets.js";
+    fjs.parentNode.insertBefore(js, fjs);
+    return window.twttr || (t = { _e: [], ready: function (f) {
+        t._e.push(f)
+    } });
+}(document, "script", "twitter-wjs"));</script>
+
 <script type="text/javascript">
     "use strict";
-
-    function calculate(input) {
-        var answer = undefined;
-
-        try {
-            answer = eval(input);
-        } catch (e) {
-            if (!(e instanceof SyntaxError)) {
-                throw e;
-            }
-        }
-
-        return answer ? answer : "...";
-    }
 
     var app = angular.module('angularExample', ['ngResource']);
 
     app.factory('twitterService', ['$http', function ($http) {
+
+        function embed(id, callback) {
+            $http.get('/embedData', {
+                params: {
+                    id: id
+                }
+            }).success(callback);
+        }
+
 
         function search(q, count, callback) {
             $http.get('/tweets', {
@@ -54,27 +58,38 @@
             }).success(callback);
         }
 
-        function getEmbedHtml(q, count, callback) {
-            $http.get('/tweets', {
-                params: {
-                    q: q,
-                    count: count
-                }
-            }).success(callback);
-        }
-
-        console.log(a);
-
-        return {search : search, };
+        return {
+            search: search,
+            embed: embed
+        };
     }]);
 
 
-    app.controller('CalculatorController', ['$scope', function ($scope) {
-        $scope.calculateWithEval = calculate
-    }]);
+    app.controller('PostIndexCtrl', ['twitterService', '$scope', '$sce', '$timeout', function (twitterService, $scope, $sce, $timeout) {
+        $scope.topic = "haskell";
+        $scope.posts = 'lol';
 
-    app.controller('PostIndexCtrl', ['', '$scope', function ($scope) {
-        $scope.posts = 'lol'
+        $scope.renderHtml = function (html_code) {
+            return $sce.trustAsHtml(html_code);
+        };
+
+        $scope.update = function () {
+            $scope.result = "";
+
+            function embedCallback(data) {
+                $scope.result += data['html'];
+                twttr.widgets.load();
+            }
+
+            function searchCallback(data) {
+//                console.log(data);
+                data['tweets'].forEach(function (tweet) {
+                    twitterService.embed(tweet['id_str'], embedCallback)
+                })
+            }
+
+            twitterService.search($scope.topic, 5, searchCallback)
+        };
     }]);
 
 </script>

@@ -23,7 +23,7 @@ def get_tweets(topic, count):
 
 
 def get_embed_html(id):
-    return client.api.statuses.oembed.get(id=id).data.get('html')
+    return client.api.statuses.oembed.get(id=id, omit_script=True).data.get('html')
 
 ##########
 
