@@ -7,19 +7,37 @@
         .ng-cloak {
             display: none !important;
         }
+
+        .topTweets iframe {
+            margin: 1em auto !important;
+        }
     </style>
+    <link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap-theme.min.css" rel="stylesheet">
 </head>
 
 <body ng-app="angularExample">
 
-<div ng-controller="PostIndexCtrl">
-    <input type="text" ng-change="update()" ng-model="topic"/>
+<div ng-controller="TwitterSearchController" class="container">
+    <h1>Twitter search</h1>
 
-    <div ng-bind-html="renderHtml(result)" id="topTweets"></div>
+    <form role="form" ng-submit="update()">
+        <div class="form-group">
+            <input type="text" class="form-control" id="topic-input" ng-model="topic"
+                   placeholder="Enter your topic & hit enter">
+        </div>
+
+    </form>
+
+    <div ng-repeat="tweet in tweets" class="topTweets" ng-bind-html="tweet">
+        {{ tweet }}
+    </div>
 </div>
 
 <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.2.22/angular.js"></script>
 <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.2.22/angular-resource.js"></script>
+<script src="//code.jquery.com/jquery-1.11.1.min.js"></script>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
 
 <script>window.twttr = (function (d, s, id) {
     var t, js, fjs = d.getElementsByTagName(s)[0];
@@ -41,7 +59,7 @@
     app.factory('twitterService', ['$http', function ($http) {
 
         function embed(id, callback) {
-            $http.get('/embedData', {
+            return $http.get('/embedData', {
                 params: {
                     id: id
                 }
@@ -50,7 +68,7 @@
 
 
         function search(q, count, callback) {
-            $http.get('/tweets', {
+            return $http.get('/tweets', {
                 params: {
                     q: q,
                     count: count
@@ -65,32 +83,29 @@
     }]);
 
 
-    app.controller('PostIndexCtrl', ['twitterService', '$scope', '$sce', '$timeout', function (twitterService, $scope, $sce, $timeout) {
-        $scope.topic = "haskell";
-        $scope.posts = 'lol';
+    app.controller('TwitterSearchController', ['twitterService', '$scope', '$sce', '$timeout',
+        function (twitterService, $scope, $sce, $timeout) {
+            $scope.topic = "";
+            $scope.tweets = [];
 
-        $scope.renderHtml = function (html_code) {
-            return $sce.trustAsHtml(html_code);
-        };
+            $scope.update = function () {
+                $scope.tweets = [];
 
-        $scope.update = function () {
-            $scope.result = "";
+                function embedCallback(data) {
+                    $scope.tweets = $scope.tweets.concat($sce.trustAsHtml(data['html']));
+                    $timeout(function () { twttr.widgets.load(); }, 500);
+                }
 
-            function embedCallback(data) {
-                $scope.result += data['html'];
-                twttr.widgets.load();
-            }
-
-            function searchCallback(data) {
+                function searchCallback(data) {
 //                console.log(data);
-                data['tweets'].forEach(function (tweet) {
-                    twitterService.embed(tweet['id_str'], embedCallback)
-                })
-            }
+                    data['tweets'].forEach(function (tweet) {
+                        twitterService.embed(tweet['id_str'], embedCallback)
+                    })
+                }
 
-            twitterService.search($scope.topic, 5, searchCallback)
-        };
-    }]);
+                twitterService.search($scope.topic, 5, searchCallback)
+            };
+        }]);
 
 </script>
 </body>
