@@ -56,32 +56,39 @@
 
     var app = angular.module('angularExample', ['ngResource']);
 
-    app.factory('twitterService', ['$http', function ($http) {
+    app.factory('twitterService', ['$http', '$q', function ($http, $q) {
+        var canceller = $q.defer();
 
         function embed(id, callback) {
             return $http.get('/embedData', {
                 params: {
                     id: id
-                }
+                },
+                timeout: canceller.promise
             }).success(callback);
         }
-
 
         function search(q, count, callback) {
             return $http.get('/tweets', {
                 params: {
                     q: q,
                     count: count
-                }
+                },
+                timeout: canceller.promise
             }).success(callback);
+        }
+
+        function cancelAll () {
+            canceller.resolve("user cancelled");
+            canceller = $q.defer();
         }
 
         return {
             search: search,
-            embed: embed
+            embed: embed,
+            cancelAll : cancelAll
         };
     }]);
-
 
     app.controller('TwitterSearchController', ['twitterService', '$scope', '$sce', '$timeout',
         function (twitterService, $scope, $sce, $timeout) {
@@ -97,11 +104,12 @@
                 }
 
                 function searchCallback(data) {
-//                console.log(data);
-                    data['tweets'].forEach(function (tweet) {
-                        twitterService.embed(tweet['id_str'], embedCallback)
+                    data['tweets'].map(function (tweet) {
+                        return twitterService.embed(tweet['id_str'], embedCallback);
                     })
                 }
+
+                twitterService.cancelAll();
 
                 twitterService.search($scope.topic, 5, searchCallback)
             };
